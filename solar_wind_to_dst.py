@@ -29,7 +29,8 @@ import os
 import copy
 import pdb
 
-#initialize
+########################## initialize
+
 #get current directory
 os.system('pwd')
 #closes all plots
@@ -67,12 +68,11 @@ times1=np.zeros(dataset) #datetime time
 
 
 #############################################################   
-#reads OMNI data from attached savefile:
+#reads OMNI2 data from attached savefile:
 def getdata():
 
  #FORMAT(2I4,I3,I5,2I3,2I4,14F6.1,F9.0,F6.1,F6.0,2F6.1,F6.3,F6.2, F9.0,F6.1,F6.0,2F6.1,F6.3,2F7.2,F6.1,I3,I4,I6,I5,F10.2,5F9.2,I3,I4,2F6.1,2I6,F5.1)
  #1963   1  0 1771 99 99 999 999 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 9999999. 999.9 9999. 999.9 999.9 9.999 99.99 9999999. 999.9 9999. 999.9 999.9 9.999 999.99 999.99 999.9  7  23    -6  119 999999.99 99999.99 99999.99 99999.99 99999.99 99999.99  0   3 999.9 999.9 99999 99999 99.9
-
  
  j=0
  print('start reading variables from file')
@@ -155,8 +155,10 @@ def converttime(): #to matplotlib format
       #print year[index], day[index], hour[index]
  print('convert time done')   #for time conversion
 
+
+
+
 ############################################################
-  
 def plotwind(start, end, tickdays):
  
  plotstartdate=matplotlib.dates.date2num(sunpy.time.parse_time(start))
@@ -218,9 +220,6 @@ def plotwind(start, end, tickdays):
  plt.tick_params(labelbottom=False)
  plt.yticks(fontsize=10) 
  plt.grid()
- 
- 
- 
    
  ################## 
  ax4 = fig.add_subplot(414)
@@ -230,11 +229,8 @@ def plotwind(start, end, tickdays):
  #set major ticks from own array
  plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
   
- #set minor ticks, one for each day
- #ax4.xaxis.set_minor_locator(minorLocator)
-  
- #dateformat angeben
- #zB mit stunden min: myformat = mdates.DateFormatter('%Y %m %d %H:%M')
+ #dateformat
+ #myformat = mdates.DateFormatter('%Y %m %d %H:%M')
  myformat = mdates.DateFormatter('%Y %m %d')
  ax4.xaxis.set_major_formatter(myformat)
  
@@ -249,8 +245,9 @@ def plotwind(start, end, tickdays):
  
  print('Bmax for selected interval', start, ' to ', end)
  #get total Bmax for selected interval
- start_ind=np.where(plotstartdate==times1)[0]
- end_ind=np.where(plotenddate==times1)[0]
+ 
+ start_ind=np.where(plotstartdate==times1)[0][0]
+ end_ind=np.where(plotenddate==times1)[0][0]
  time_interval=times1[start_ind:end_ind]
  btot_interval=btot[start_ind:end_ind]
  print('Maximum total B',np.nanmax(btot_interval), 'nT')
@@ -546,10 +543,10 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   offset[i]=-5
   
   #dst 3 makes spikes for longer intervals
-  #dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]	+offset[i]
+  dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]	+offset[i]
   
   #line without Dst3
-  dst_temerin_li_out[i]=dst1[i]+dst2[i]+pressureterm[i]+directterm[i]	+offset[i]
+  #dst_temerin_li_out[i]=dst1[i]+dst2[i]+pressureterm[i]+directterm[i]	+offset[i]
   
   #print(dst_temerin_li_out[i])
   
@@ -578,7 +575,7 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
 ####################################################### MAIN PROGRAM
 
 
-################################# get data
+########################################## get data
 #read in data from omni file -> 1 , from save_file -> 0
 data_from_omni_file = 0 #
 
@@ -589,25 +586,16 @@ if data_from_omni_file == 1:
 else: [spot,btot,bx,by,bz,bygsm, bzgsm,speed,speedx, dst,kp,den,pdyn,year,day,hour,times1]= pickle.load( open( "omni2save.p", "rb" ) )
 
 
-######################## for plotting a specific interval
-#plotwind('1995-Jan-1','2016-Jul-10',365)
+###################################### for plotting a specific interval of the data in an extra plot
+
+plotwind('1995-Jan-1','2016-Jul-10',365)
 
 
-##################################slice data for comparison of solar wind to Dst conversion
+################################## slice data for comparison of solar wind to Dst conversion
 
-#start time +n days 
-#start='2013-Jul-5'
-#ndays=5
-
-#for testing to be compared with Temerin and Li 2002
-#start='2000-Jan-10'
-#ndays=35
-
-#other test time range
-start='2010-Apr-10'
+#test time range
+start='2011-Aug-1'
 ndays=100
-
-
 
 #smaller ndays array with hourly values
 btoti=np.zeros(24*ndays)
@@ -625,7 +613,6 @@ pdyni=np.zeros(24*ndays)
 
 
 s=mdates.date2num(sunpy.time.parse_time(start))
-#take this starting date + 10 days for a smaller array for calculating Dst
 #"i" stands for interval
 ind=np.where(s==times1)[0][0]
 btoti=btot[ind:ind+24*ndays]
@@ -642,21 +629,11 @@ timesi=times1[ind:ind+24*ndays]
 dsti=dst[ind:ind+24*ndays]
 kpi=kp[ind:ind+24*ndays]
 
-
-#for exoplanets, change B scale and V scale reasonably for distances 
-#where exo Earth magnetic fields can be expected to dominate over the atmosphere
-#so outside of tidal locking
-
-
 #IMF clock angle
 thetai=np.arctan2(bygsmi,bzgsmi)
 thetai_deg=thetai*180/np.pi
 
-
-
-#linearly interpolate over nan
-
-
+################  linearly interpolate over nan
 
 time_new=np.arange(timesi[0],timesi[-1]+1/24,1/24)
 
@@ -682,12 +659,13 @@ good = np.where(np.isfinite(deni))
 deni=np.interp(time_new,timesi[good],deni[good])
 
 
-  
-#def make_3dcore_dst(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in):
 
+######### Use function for calculation
 [dst_burton, dst_obrien, dst_temerin_li]=make_dst_from_wind(btoti,bxi,  bygsmi, bzgsmi, speedi, speedix, deni, timesi)
 
 
+
+############################# plot solar wind to Dst conversion results
 
 sns.set_context("talk")     
 sns.set_style("darkgrid")  
@@ -695,17 +673,13 @@ fig=plt.figure(2,figsize=(10,6))
 wide=1
 fsize=10
 
-plt.suptitle('Dst prediction from solar wind speed and magnetic field', fontsize=20)
-
+plt.suptitle('Dst prediction from solar wind speed and magnetic field', fontsize=15)
 
 ax1 = fig.add_subplot(411)
 plt.plot_date(timesi,btoti, 'k', linewidth=wide, label='B')
 plt.ylabel('B [nT]',fontsize=fsize)
-
 plt.yticks(fontsize=15) 
 plt.tick_params(labelbottom=False)
-
-#plt.legend()
 
 #ax1 = fig.add_subplot(412)
 #plt.plot_date(timesi,thetai_deg, 'k', linewidth=wide, label='theta')
@@ -713,109 +687,69 @@ plt.tick_params(labelbottom=False)
 
 ax1 = fig.add_subplot(412)
 plt.plot_date(timesi,bzgsmi, 'b', linewidth=wide, label='Bz GSM')
-plt.ylabel('Bz component [nT]',fontsize=15)
-
+plt.ylabel('Bz component [nT]',fontsize=fsize)
 plt.tick_params(labelbottom=False)
-
-plt.yticks(fontsize=15) 
-
+plt.yticks(fontsize=fsize) 
 
 ax2 = fig.add_subplot(413)
-plt.plot_date(timesi,deni, 'r', linewidth=wide, label='V')
-plt.ylabel('V [km/s]',fontsize=15)
-
-plt.yticks(fontsize=15) 
+plt.plot_date(timesi,speedi, 'r', linewidth=wide, label='V')
+plt.ylabel('V [km/s]',fontsize=fsize)
+plt.yticks(fontsize=fsize) 
 plt.tick_params(labelbottom=False)
-
 
 ax3 = fig.add_subplot(414)
 plt.plot_date(timesi,dsti, 'ko', markersize=wide+1) #, label='Observed hourly Dst')
-plt.plot_date(timesi,dst_burton, 'b-', linewidth=wide, label='Burton et al. 1975')
-plt.plot_date(timesi,dst_obrien, 'r-', linewidth=wide, label='OBrien & McPherron 2000')
+#plt.plot_date(timesi,dst_burton, 'b-', linewidth=wide, label='Burton et al. 1975')
+#plt.plot_date(timesi,dst_obrien, 'r-', linewidth=wide, label='OBrien & McPherron 2000')
 plt.plot_date(timesi,dst_temerin_li, 'g-', linewidth=wide, label='Temerin & Li 2002')
-plt.legend(loc=3,fontsize=16)
+plt.legend(loc=3,fontsize=fsize-2)
+#ax3.set_ylim([-130,40])
+plt.ylabel('Dst index [nT]',fontsize=fsize)
+plt.yticks(fontsize=fsize) 
+plt.xticks(fontsize=fsize) 
 
-#ax3.set_ylim([-200,100])
-#for july 2013 sample
-ax3.set_ylim([-130,40])
-#ax3.set_ylim([-170,60])
-
-plt.ylabel('Dst index [nT]',fontsize=15)
-
-
-plt.yticks(fontsize=15) 
-plt.xticks(fontsize=15) 
+plt.tight_layout()
 
 
+#save plot
 
-
-
-
-filename='test_2013_coupling.eps'
-plt.savefig(filename, dpi=300)
-filename='test_2013_coupling.png'
+#filename='test_coupling.eps'
+#plt.savefig(filename, dpi=300)
+filename='wind_to_dst_coupling_test.png'
 plt.savefig(filename)
 
 
 
-#################calculate numbers
+#################################### Metrics:
 
-print('TL model')
-abserr=(sum((abs(dsti)-abs(dst_temerin_li)))/len(dsti))
-print('Absolute model to observed Dst for this time interval: ', abserr, ' nT')
+print('Metrics for ',ndays,' days interval starting with ',start)
 print()
+print('Absolute difference model to observed Dst for this time interval:')
+abserr=(sum((abs(abs(dsti)-abs(dst_burton))))/len(dsti))
+print('Burton:', round(abserr,1), ' nT')
+abserr=(sum((abs(abs(dsti)-abs(dst_obrien))))/len(dsti))
+print('OBrien:', round(abserr,1), ' nT')
+abserr=(sum((abs(abs(dsti)-abs(dst_temerin_li))))/len(dsti))
+print('TemerinLi:', round(abserr,1), ' nT')
 
-rms=(sum((dsti-dst_temerin_li)**2)/len(dsti))**0.5
-print('RMS error TL model to observed Dst for this time interval: ', rms, ' nT')
-#efficiency
-residual=dsti-dst_temerin_li
-effic=(1-np.std(residual)**2/np.std(dsti)**2)*100
-print('prediction efficiency: ', effic, ' %')
-
-
-print('Burton model')
+print()
+print('RMS error TL model to observed Dst for this time interval: ')
 rms=(sum((dsti-dst_burton)**2)/len(dsti))**0.5
-print('RMS error model to observed Dst for this time interval: ', rms, ' nT')
+print('Burton:', round(rms,1), ' nT')
+rms=(sum((dsti-dst_obrien)**2)/len(dsti))**0.5
+print('OBrien:', round(rms,1), ' nT')
+rms=(sum((dsti-dst_temerin_li)**2)/len(dsti))**0.5
+print('TemerinLi:', round(rms,1), ' nT')
 
-abserr=(sum((abs(dsti)-abs(dst_burton)))/len(dsti))
-print('Absolute model to observed Dst for this time interval: ', abserr, ' nT')
 print()
-
-
-
-#efficiency
+print('prediction efficiency:')
 residual=dsti-dst_burton
 effic=(1-np.std(residual)**2/np.std(dsti)**2)*100
-print('prediction efficiency: ', effic, ' %')
-
-
-print('OBrien model')
-rms=(sum((dsti-dst_obrien)**2)/len(dsti))**0.5
-print('RMS error model to observed Dst for this time interval: ', rms, ' nT')
-
-
-abserr=(sum((abs(dsti)-abs(dst_obrien)))/len(dsti))
-print('Absolute model to observed Dst for this time interval: ', abserr, ' nT')
-print()
-
-
-#efficiency
+print('Burton: ', int(effic), ' %')
 residual=dsti-dst_obrien
 effic=(1-np.std(residual)**2/np.std(dsti)**2)*100
-print('prediction efficiency: ', effic, ' %')
-
-
-
-#plt.plot(thetac*180/np.pi,c,'r',linewidth=wide, label='Coupling')
-#plt.plot(thetac*180/np.pi,dphidt,'b',linewidth=wide, label='Coupling')
-#plt.xlabel('IMF clock angle in degrees')
-#plt.ylabel('coupling')
-#plt.xlim(-180,180)
-
-
-
-sys.exit()
-
-
-
+print('OBrien: ', int(effic), ' %')
+residual=dsti-dst_temerin_li
+effic=(1-np.std(residual)**2/np.std(dsti)**2)*100
+print('TemerinLi: ', int(effic), ' %')
 
