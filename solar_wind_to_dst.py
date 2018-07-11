@@ -350,9 +350,9 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  
  
  #define inital values (needed for convergence, see Temerin and Li 2002 note)
- dst1[0]=-15
- dst2[0]=-13
- dst3[0]=-2
+ dst1[0:10]=-15
+ dst2[0:10]=-13
+ dst3[0:10]=-2
  
  
 
@@ -361,11 +361,31 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  p2=2.18e-4
  p3=14.7
  
+ # these need to be found with a fit for 1-2 years before calculation
+ # taken from the TL code:    offset_term_s1 = 6.70       ;formerly named dsto
+ #   offset_term_s2 = 0.158       ;formerly hard-coded     2.27 for 1995-1999
+ #   offset_term_s3 = -0.94       ;formerly named phasea  -1.11 for 1995-1999
+ #   offset_term_s4 = -0.00954    ;formerly hard-coded
+ #   offset_term_s5 = 8.159e-6    ;formerly hard-coded
+ 
+ 
+ #s1=6.7
+ #s2=0.158
+ #s3=-0.94
+ #set by myself as a constant in the offset term
+ #s4=-3
+ 
+ 
  s1=-2.788
  s2=1.44
  s3=-0.92
- s4=-1.054*1e-2
- s5=8.6e-6
+ #set by myself as a constant in the offset term
+
+ s4=-3
+
+ #s4 and s5 as in the TL 2002 paper are not used due to problems with the time
+ #s4=-1.054*1e-2
+ #s5=8.6e-6
  
  a1=6.51e-2
  a2=1.37
@@ -387,9 +407,6 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
 
  #Note: vx has to be used with a positive sign throughout the calculation
  
- #problem with t - days since 1995 dont work after 1999 because offset too high, 
- #adapted term
- 
  
  
  #----------------------------------------- loop over each timestep
@@ -399,8 +416,7 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   #t time in days since beginning of 1995   #1 Jan 1995 in Julian days
   t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
   
-  #t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('2014-1-1 00:00')
-     
+ 
   yearli=365.24 
   tt=2*np.pi*t1/yearli
   ttt=2*np.pi*t1
@@ -417,11 +433,9 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   directterm[i]=0.478*bz_in[i]*(sinphi**11.0)
 
   #3 offset term - the last two terms were cut because don't make sense as t1 rises extremely for later years
-  offset[i]=s1+s2*np.sin(2*np.pi*t1/yearli+s3)#+s4*t1+s5*(t1**2)
+  offset[i]=s1+s2*np.sin(2*np.pi*t1/yearli+s3)+s4
   #or just set it constant
   #offset[i]=-5
-  
-  
   bt[i]=(by_in[i]**2+bz_in[i]**2)**0.5  
   #mistake in 2002 paper - bt is similarly defined as bp (with by bz); but in Temerin and Li's code (dst.pro) bp depends on by and bx
   bp[i]=(by_in[i]**2+bx_in[i]**2)**0.5  
@@ -538,8 +552,8 @@ else: [spot,btot,bx,by,bz,bygsm, bzgsm,speed,speedx, dst,kp,den,pdyn,year,day,ho
 ################################## slice data for comparison of solar wind to Dst conversion
 
 #test time range
-start='2014-Jan-1'
-ndays=365
+start='2015-Jan-20'
+ndays=300
 
 #smaller ndays array with hourly values
 btoti=np.zeros(24*ndays)
