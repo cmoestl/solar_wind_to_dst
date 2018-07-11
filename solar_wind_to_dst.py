@@ -350,9 +350,9 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  
  
  #define inital values (needed for convergence, see Temerin and Li 2002 note)
- dst1[0:10]=-15
- dst2[0:10]=-13
- dst3[0:10]=-2
+ dst1[0]=-15
+ dst2[0]=-13
+ dst3[0]=-2
  
  
 
@@ -383,63 +383,23 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  b3=1.29e-2
  
  c1=-24.3
- c2=5.2e2
+ c2=5.2e-2
 
  #Note: vx has to be used with a positive sign throughout the calculation
  
- #problem with t - days since 1995 dont work after 1999
+ #problem with t - days since 1995 dont work after 1999 because offset too high, 
+ #adapted term
  
  
  
  #----------------------------------------- loop over each timestep
- for i in range(len(bz_in)-1):
+ for i in np.arange(1,len(bz_in)-1):
 
-  #for 3DCORE use constant density in cm-3
-  #if density is nan then set to 5
-  
-  if np.isnan(density_in[i]) > 0: density_in[i]=5
-
-  #define terms
-  
-  
-    
-  ###############################
-  #TL 2006 start- really complicated 
-
-
-  #t time in days since beginning of 1995   #1 Jan 1995 in Julian days
-  #t=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
-  
-  #fy=2*np.pi/365.24 
-  
-  #dst1[i+1]=dst1[i]+ ((5.041*1e-3)*dst1[i]**                 )
-  
-  
-  #dst2=
-  #dst3=
-  #dbz=0
-  #pressure=0
-  #offterm=0
-
-
-  #dst1s=dst1*(1.0+0.0801*np.sin(t*fy+1.886))
-  #dst2s=dst2*(1.0+0.0251*np.sin(t*fy+3.18))
-  #dst3s=dst3*(1.0+0.0901*np.sin(t*fy+5.31))*(1-0.00007*dst1s)
-  #dbzterms=dbz*(1.0+0.293*np.sin(t*fy+3.19))*(1.0+0.0034*dst1s)
-  #pterms=pressure*(1.0+0.0986*np.sin(t*fy-1.383))*(1.0+0.00184*dst1s)
-
-
-  #Dst=dst1s+dst2s+dst3s+pterms+dbzterms+offterm
-
-  ###################################
-
-
-  #Temerin and Li 2002
-
-  
-  #1 pressure term ****************** scheint OK etwa +30 nT
+      
   #t time in days since beginning of 1995   #1 Jan 1995 in Julian days
   t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
+  
+  #t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('2014-1-1 00:00')
      
   yearli=365.24 
   tt=2*np.pi*t1/yearli
@@ -448,87 +408,66 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   beta=1.22
   cosphi=np.sin(tt+alpha)*np.sin(ttt-tt-beta)*(9.58589*1e-2)+np.cos(tt+alpha)*(0.39+0.104528*np.cos(ttt-tt-beta))
  
-  
-  #not that in Temerin and Li's code, these times are implemented very differently! - starting point for generalization
-  #to arbitrary dates
-  
   #equation 1 use phi from equation 2
   sinphi=(1-cosphi**2)**0.5
   
-  
   pressureterm[i]=(p1*(btot_in[i]**2)+density_in[i]*((p2*((v_in[i])**2)/(sinphi**2.52))+p3))**0.5
   
-  #2 directbzterm ************scheint OK etwa 0.5 (siehe paper, das passt)
+  #2 directbzterm 
   directterm[i]=0.478*bz_in[i]*(sinphi**11.0)
 
-  #3 offset  ** stimmt sicher nicht fuer 2012, t1 macht keinen Sinn, wert 300 viel zu hoch, weglassen derweil (in TL 2006 auch nur bis 2002)
-  #offset[i]=s1+s2*np.sin(2*np.pi*t1/yearli+s3)+s4*t1+s5*(t1**2)
-  #*** einfach selber definieren durch anpassen
-
-  bt[i]=(by_in[i]**2+bz_in[i]**2)**0.5  
-
-  #mistake in paper - bt is similarly defined as bp (with by bz); but in Temerin and Li's code (dst.pro) bp depends on by and bx
-  bp[i]=(by_in[i]**2+bx_in[i]**2)**0.5  
-
+  #3 offset term - the last two terms were cut because don't make sense as t1 rises extremely for later years
+  offset[i]=s1+s2*np.sin(2*np.pi*t1/yearli+s3)#+s4*t1+s5*(t1**2)
+  #or just set it constant
+  #offset[i]=-5
   
+  
+  bt[i]=(by_in[i]**2+bz_in[i]**2)**0.5  
+  #mistake in 2002 paper - bt is similarly defined as bp (with by bz); but in Temerin and Li's code (dst.pro) bp depends on by and bx
+  bp[i]=(by_in[i]**2+bx_in[i]**2)**0.5  
   #contains t1, but in cos and sin 
   dh=bp[i]*np.cos(np.arctan2(bx_in[i],by_in[i])+6.10) * ((3.59e-2)*np.cos(2*np.pi*t1/yearli+0.04)-2.18e-2*np.sin(2*np.pi*t1-1.60))
-  
-  
   theta_li=-(np.arccos(-bz_in[i]/bt[i])-np.pi)/2
-  
   exx=1e-3*abs(vx_in[i])*bt[i]*np.sin(theta_li)**6.1
- 
   #t1 and dt are in days
   dttl=sunpy.time.julian_day(mdates.num2date(time_in[i+1]))-sunpy.time.julian_day(mdates.num2date(time_in[i]))
 
  
-  #4 dst1  *********** scheint zu passen
-
+  #4 dst1 
   #find value of dst1(t-tau1) 
-  #time_in ist im matplotlib format ist in Tagen: im times den index suchen wo timesi-tau1 am nächsten ist
+  #time_in is in matplotlib format in days: 
+  #im time_in den index suchen wo time_in-tau1 am nächsten ist
   #und dann bei dst1 den wert mit dem index nehmen der am nächsten ist, das ist dann dst(t-tau1)
   #wenn index nicht existiert (am anfang) einfach index 0 nehmen
   #check for index where timesi is greater than t minus tau
+  
   indtau1=np.where(time_in > (time_in[i]-tau1))
   dst1tau1=dst1[indtau1[0][0]]
   #similar search for others  
   dst2tau1=dst2[indtau1[0][0]]
- 
   th1=0.725*(sinphi**-1.46)
   th2=1.83*(sinphi**-1.46)
   fe1=(-4.96e-3)*  (1+0.28*dh)*  (2*exx+abs(exx-th1)+abs(exx-th2)-th1-th2)*  (abs(vx_in[i])**1.11)*((density_in[i])**0.49)*(sinphi**6.0)
-
   dst1[i+1]=dst1[i]+  (a1*(-dst1[i])**a2   +fe1*   (1+(a3*dst1tau1+a4*dst2tau1)/(1-a5*dst1tau1-a6*dst2tau1)))  *dttl
-  
   
   #5 dst2    
   indtau2=np.where(time_in > (time_in[i]-tau2))
   dst1tau2=dst1[indtau2[0][0]]
   df2=(-3.85e-8)*(abs(vx_in[i])**1.97)*(btot_in[i]**1.16)*(np.sin(theta_li)**5.7)*((density_in[i])**0.41)*(1+dh)
   fe2=(2.02*1e3)*(sinphi**3.13)*df2/(1-df2)
-   
   dst2[i+1]=dst2[i]+(b1*(-dst2[i])**b2+fe2*(1+(b3*dst1tau2)/(1-b3*dst1tau2)))*dttl
   
-    
-  
-  
   #6 dst3  
-  
   indtau3=np.where(time_in > (time_in[i]-tau3))
   dst3tau3=dst3[indtau3[0][0]]
   df3=-4.75e-6*(abs(vx_in[i])**1.22)*(bt[i]**1.11)*np.sin(theta_li)**5.5*((density_in[i])**0.24)*(1+dh)
-  fe3=3.45e3*sinphi**0.9*df3/(1-df3)
-  
+  fe3=3.45e3*(sinphi**0.9)*df3/(1-df3)
   dst3[i+1]=dst3[i]+  (c1*dst3[i]   + fe3*(1+(c2*dst3tau3)/(1-c2*dst3tau3)))*dttl
   
    
   #print(dst1[i], dst2[i], dst3[i], pressureterm[i], directterm[i], offset[i])
-  
   #debugging
   #if i == 30: pdb.set_trace()
-
-  
   #for debugging
   #print()
   #print(dst1[i])
@@ -538,23 +477,28 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   #print(directterm[i])
 
 
-  #final value for more recent data:
-  #quick fix for wrong offset: this is set constant for years later than 2002 for now)
-  offset[i]=-5
+  #add time delays: ** to do
   
-  #dst 3 makes spikes for longer intervals
-  dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]	+offset[i]
+  #The dst1, dst2, dst3, (pressure term), (direct IMF bz term), and (offset terms) are added (after interpolations) with time delays of 7.1, 21.0, 43.4, 2.0, 23.1 and 7.1 min, respectively, for comparison with the ‘‘Kyoto Dst.’’ 
+
+  #dst1
   
-  #line without Dst3
-  #dst_temerin_li_out[i]=dst1[i]+dst2[i]+pressureterm[i]+directterm[i]	+offset[i]
+  dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]+offset[i]
   
+  
+
+  
+
+
   #print(dst_temerin_li_out[i])
-  
-  
-  #if np.isfinite(dst_temerin_li_out[i]) == False: dst_temerin_li_out[i]=dst_temerin_li_out[i-1]
  
   #---------------- loop over
-  
+ plt.plot(dst1)
+ plt.plot(dst2)
+ plt.plot(dst3)
+ plt.plot(pressureterm)
+ plt.plot(directterm)
+ plt.plot(offset) 
   
 
  return (dstcalc1,dstcalc2, dst_temerin_li_out)
@@ -588,14 +532,14 @@ else: [spot,btot,bx,by,bz,bygsm, bzgsm,speed,speedx, dst,kp,den,pdyn,year,day,ho
 
 ###################################### for plotting a specific interval of the data in an extra plot
 
-plotwind('1995-Jan-1','2016-Jul-10',365)
+#plotwind('1995-Jan-1','2016-Jul-10',365)
 
 
 ################################## slice data for comparison of solar wind to Dst conversion
 
 #test time range
-start='2011-Aug-1'
-ndays=100
+start='2014-Jan-1'
+ndays=365
 
 #smaller ndays array with hourly values
 btoti=np.zeros(24*ndays)
@@ -698,10 +642,10 @@ plt.yticks(fontsize=fsize)
 plt.tick_params(labelbottom=False)
 
 ax3 = fig.add_subplot(414)
-plt.plot_date(timesi,dsti, 'ko', markersize=wide+1) #, label='Observed hourly Dst')
+plt.plot_date(timesi,dsti, 'ok', markersize=wide+1,linewidth=1) #, label='Observed hourly Dst')
 #plt.plot_date(timesi,dst_burton, 'b-', linewidth=wide, label='Burton et al. 1975')
 #plt.plot_date(timesi,dst_obrien, 'r-', linewidth=wide, label='OBrien & McPherron 2000')
-plt.plot_date(timesi,dst_temerin_li, 'g-', linewidth=wide, label='Temerin & Li 2002')
+plt.plot_date(timesi,dst_temerin_li, 'g-', linewidth=1, label='Temerin & Li 2002')
 plt.legend(loc=3,fontsize=fsize-2)
 #ax3.set_ylim([-130,40])
 plt.ylabel('Dst index [nT]',fontsize=fsize)
