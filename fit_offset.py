@@ -28,6 +28,8 @@ import seaborn as sns
 import os
 import copy
 import pdb
+import scipy
+
 
 ########################## initialize
 
@@ -262,7 +264,7 @@ def plotwind(start, end, tickdays):
 ######################################################################################## 
 ###  THIS IS THE MAIN FUNCTION FOR SOLAR WIND TO DST CONVERSION  
 ########################################################################################
-def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in):
+def optimize_offset(sarr):
 
  #this makes from synthetic or observed solar wind the Dst index	
  #all nans in the input data must be removed prior to function call
@@ -276,61 +278,11 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  #vx_in - the solar wind speed x component (GSE is similar to GSM) in km/s
  #time_in - the time in matplotlib date format
 
- #define variables
- Ey=np.zeros(len(bz_in))
- #dynamic pressure
- pdyn1=np.zeros(len(bz_in))
- protonmass=1.6726219*1e-27  #kg
- #assume pdyn is only due to protons
- pdyn1=density_in*1e6*protonmass*(v_in*1e3)**2*1e9  #in nanoPascal
- dststar1=np.zeros(len(bz_in))
- dstcalc1=np.zeros(len(bz_in))
- dststar2=np.zeros(len(bz_in))
- dstcalc2=np.zeros(len(bz_in))
- 
- #array with all Bz fields > 0 to 0 
- bz_in_negind=np.where(bz_in > 0)  
-  #important: make a deepcopy because you manipulate the input variable
- bzneg=copy.deepcopy(bz_in)
- bzneg[bz_in_negind]=0
+ s1=sarr[0]
+ s2=sarr[1]
+ s3=sarr[2]
 
- #define interplanetary electric field 
- Ey=v_in*abs(bzneg)*1e-3; #now Ey is in mV/m
- 
- ######################## model 1: Burton et al. 1975 
- Ec=0.5  
- a=3.6*1e-5
- b=0.2*100 #*100 wegen anderer dynamic pressure einheit in Burton
- c=20  
- d=-1.5/1000 
- for i in range(len(bz_in)-1):
-  if Ey[i] > Ec:
-   F=d*(Ey[i]-Ec) 
-  else: F=0
-  #Burton 1975 seite 4208: Dst=Dst0+bP^1/2-c   / und b und c positiv  
-  #this is the ring current Dst
-  deltat_sec=(time_in[i+1]-time_in[i])*86400 #timesyn is in days - convert to seconds
-  dststar1[i+1]=(F-a*dststar1[i])*deltat_sec+dststar1[i];  #deltat must be in seconds
-  #this is the Dst of ring current and magnetopause currents 
-  dstcalc1[i+1]=dststar1[i+1]+b*np.sqrt(pdyn1[i+1])-c; 
 
- ###################### model 2: OBrien and McPherron 2000 
- #constants
- Ec=0.49
- b=7.26  
- c=11  #nT
- for i in range(len(bz_in)-1):
-  if Ey[i] > Ec:            #Ey in mV m
-   Q=-4.4*(Ey[i]-Ec) 
-  else: Q=0
-  tau=2.4*np.exp(9.74/(4.69+Ey[i])) #tau in hours
-  #this is the ring current Dst
-  deltat_hours=(time_in[i+1]-time_in[i])*24 #time_in is in days - convert to hours
-  dststar2[i+1]=((Q-dststar2[i]/tau))*deltat_hours+dststar2[i] #t is pro stunde, time intervall ist auch 1h
-  #this is the Dst of ring current and magnetopause currents 
-  dstcalc2[i+1]=dststar2[i+1]+b*np.sqrt(pdyn1[i+1])-c; 
-  
- 
  
  ######## model 3: Xinlin Li LASP Colorado and Mike Temerin
  
@@ -361,35 +313,7 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  p2=2.18e-4
  p3=14.7
  
- # these need to be found with a fit for 1-2 years before calculation
- # taken from the TL code:    offset_term_s1 = 6.70       ;formerly named dsto
- #   offset_term_s2 = 0.158       ;formerly hard-coded     2.27 for 1995-1999
- #   offset_term_s3 = -0.94       ;formerly named phasea  -1.11 for 1995-1999
- #   offset_term_s4 = -0.00954    ;formerly hard-coded
- #   offset_term_s5 = 8.159e-6    ;formerly hard-coded
- 
- 
- #s1=6.7
- #s2=0.158
- #s3=-0.94
- #set by myself as a constant in the offset term
- #s4=-3
- 
- 
- #s1=-2.788
- #s2=1.44
- #s3=-0.92
- #set by myself as a constant in the offset term
- #s4=-3
- #s4 and s5 as in the TL 2002 paper are not used due to problems with the time
- #s4=-1.054*1e-2
- #s5=8.6e-6
 
-
- #found by own offset optimization for 2015
- s1=4.29
- s2=5.94
- s3=-3.97
  
  a1=6.51e-2
  a2=1.37
@@ -418,8 +342,7 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
 
       
   #t time in days since beginning of 1995   #1 Jan 1995 in Julian days
-#  t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
-  t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('2015-1-1 00:00')
+  t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
   
  
   yearli=365.24 
@@ -512,15 +435,18 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   #print(dst_temerin_li_out[i])
  
   #---------------- loop over
- plt.plot(dst1)
- plt.plot(dst2)
- plt.plot(dst3)
- plt.plot(pressureterm)
- plt.plot(directterm)
- plt.plot(offset) 
+ #plt.plot(dst1)
+ #plt.plot(dst2)
+ #plt.plot(dst3)
+ #plt.plot(pressureterm)
+ #plt.plot(directterm)
+ #plt.plot(offset) 
   
+ rms_TL=(sum((dsti-dst_temerin_li_out)**2)/len(dsti))**0.5
+ 
+ print(round(s1,2),round(s2,2),round(s3,2), '      rms: ',round(rms_TL,2))
 
- return (dstcalc1,dstcalc2, dst_temerin_li_out)
+ return rms_TL
    
    
 
@@ -558,7 +484,7 @@ else: [spot,btot,bx,by,bz,bygsm, bzgsm,speed,speedx, dst,kp,den,pdyn,year,day,ho
 
 #test time range
 start='2015-Jan-20'
-ndays=500
+ndays=300
 
 #smaller ndays array with hourly values
 btoti=np.zeros(24*ndays)
@@ -624,9 +550,69 @@ deni=np.interp(time_new,timesi[good],deni[good])
 
 
 ######### Use function for calculation
-[dst_burton, dst_obrien, dst_temerin_li]=make_dst_from_wind(btoti,bxi,  bygsmi, bzgsmi, speedi, speedix, deni, timesi)
+#[dst_burton, dst_obrien, dst_temerin_li]=make_dst_from_wind(btoti,bxi,  bygsmi, bzgsmi, speedi, speedix, deni, timesi)
+
+#optimize s1-4 of offset function
+
+ # these need to be found with a fit for 1-2 years before calculation
+ # taken from the TL code:    offset_term_s1 = 6.70       ;formerly named dsto
+ #   offset_term_s2 = 0.158       ;formerly hard-coded     2.27 for 1995-1999
+ #   offset_term_s3 = -0.94       ;formerly named phasea  -1.11 for 1995-1999
+ #   offset_term_s4 = -0.00954    ;formerly hard-coded
+ #   offset_term_s5 = 8.159e-6    ;formerly hard-coded
+ 
+#x0=[6.7, 0.15, -0.94, -5]
+
+ #s1=6.7
+ #s2=0.158
+ #s3=-0.94
+ #set by myself as a constant in the offset term
+ #s4=-3
+ 
+ 
+
+ #s4 and s5 as in the TL 2002 paper are not used due to problems with the time
+ #s4=-1.054*1e-2
+ #s5=8.6e-6
 
 
+btot_in=btoti
+bx_in=bxi
+by_in=bygsmi
+bz_in=bzgsmi
+v_in=speedi
+vx_in=speedix
+density_in=deni
+time_in=timesi
+
+
+#define variables
+#dynamic pressure
+pdyn1=np.zeros(len(bz_in))
+protonmass=1.6726219*1e-27  #kg
+#assume pdyn is only due to protons
+pdyn1=density_in*1e6*protonmass*(v_in*1e3)**2*1e9  #in nanoPascal
+
+ 
+
+
+
+
+
+#x0=[6.7, 0.15, -0.9, -3]
+
+#x0=[-2.79, 1.44, -0.92, -7]
+
+x0=[4.2,5.95,-3.93]
+
+#smin=scipy.optimize.fmin(optimize_offset, x0)
+smin=scipy.optimize.minimize(optimize_offset, x0, method='Powell')
+
+sys.exit()
+
+ 
+rms=optimize_offset(x0)
+print(rms)
 
 ############################# plot solar wind to Dst conversion results
 
