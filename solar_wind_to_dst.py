@@ -1,18 +1,22 @@
-## solar_wind_to_dst_example.py
+## solar_wind_to_dst.py
 ##
 ##
 ## This is a code for showing an example how to convert
 ## solar wind observations (here OMNI2 data) to the geomagnetic Dst index
+## https://github.com/cmoestl/solar_wind_to_dst
+##
 ## Author: C. Moestl, IWF Graz, Austria
 ##
+## If results made with this code are used for scientific publications, 
+## please contact me before submission: christian.moestl@oeaw.ac.at or twitter @chrisoutofspace
+##
 ## latest update: November 2018
-## tested in ipython 3.5 with sunpy and seaborn installed
+## tested in python 3.5.2 with sunpy and seaborn installed
 ##
 ## available methods: 
-## Burton et al. 1975
-## OBrien & McPherron 2000
-## Temerin and Li 2002 
-## (note that Temerin and Li 2006 is not implemented here)
+## Burton et al. 1975 doi:10.1029/JA080i031p04204  
+## OBrien & McPherron 2000 doi: 10.1029/1998JA000437
+## Temerin and Li 2002 doi: 10.1029/2001JA007532
 ##
 ## MIT LICENSE
 ## Copyright 2018, Christian Moestl 
@@ -30,9 +34,6 @@
 ## HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
 ## CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
 ## OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-##
-## If results made with this code are used for scientific publications, 
-## please contact me before submission: christian.moestl@oeaw.ac.at or twitter @chrisoutofspace
 
 
 import sys
@@ -49,131 +50,17 @@ import os
 import copy
 import pdb
 
-################################### main program ########################################
+import urllib
 
-#closes all plots
-plt.close('all')
+import predstorm_module
 
-#define global variables from OMNI2 dataset
-#see http://omniweb.gsfc.nasa.gov/html/ow_data.html
+from predstorm_module import get_omni_data
+from predstorm_module import convert_omni_time
+from predstorm_module import make_dst_from_wind
 
-dataset=473376;
-#global Variables
-spot=np.zeros(dataset) 
-btot=np.zeros(dataset) #floating points
-bx=np.zeros(dataset) #floating points
-by=np.zeros(dataset) #floating points
-bz=np.zeros(dataset) #floating points
-bzgsm=np.zeros(dataset) #floating points
-bygsm=np.zeros(dataset) #floating points
+#from predstorm_module import time_to_num_cat
 
-speed=np.zeros(dataset) #floating points
-speedx=np.zeros(dataset) #floating points
-speed_phi=np.zeros(dataset) #floating points
-speed_theta=np.zeros(dataset) #floating points
-
-dst=np.zeros(dataset) #float
-kp=np.zeros(dataset) #float
-
-den=np.zeros(dataset) #float
-pdyn=np.zeros(dataset) #float
-year=np.zeros(dataset)
-day=np.zeros(dataset)
-hour=np.zeros(dataset)
-t=np.zeros(dataset) #index time
-times1=np.zeros(dataset) #datetime time
-
-
-
-#############################################################   
-#reads OMNI2 data from attached savefile:
-def getdata():
-
- #FORMAT(2I4,I3,I5,2I3,2I4,14F6.1,F9.0,F6.1,F6.0,2F6.1,F6.3,F6.2, F9.0,F6.1,F6.0,2F6.1,F6.3,2F7.2,F6.1,I3,I4,I6,I5,F10.2,5F9.2,I3,I4,2F6.1,2I6,F5.1)
- #1963   1  0 1771 99 99 999 999 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 9999999. 999.9 9999. 999.9 999.9 9.999 99.99 9999999. 999.9 9999. 999.9 999.9 9.999 999.99 999.99 999.9  7  23    -6  119 999999.99 99999.99 99999.99 99999.99 99999.99 99999.99  0   3 999.9 999.9 99999 99999 99.9
- 
- j=0
- print('start reading variables from file')
- with open('omni2_all_years.dat') as f:
-  for line in f:
-   line = line.split() # to deal with blank 
-   #print line #41 is Dst index, in nT
-   dst[j]=line[40]
-   kp[j]=line[38]
-   
-   if dst[j] == 99999: dst[j]=np.NaN
-   #40 is sunspot number
-   spot[j]=line[39]
-   #if spot[j] == 999: spot[j]=NaN
-
-   #25 is bulkspeed F6.0, in km/s
-   speed[j]=line[24]
-   if speed[j] == 9999: speed[j]=np.NaN
- 
-   #get speed angles F6.1
-   speed_phi[j]=line[25]
-   if speed_phi[j] == 999.9: speed_phi[j]=np.NaN
-
-   speed_theta[j]=line[26]
-   if speed_theta[j] == 999.9: speed_theta[j]=np.NaN
-   #convert speed to GSE x see OMNI website footnote
-   speedx[j] = - speed[j] * np.cos(np.radians(speed_theta[j])) * np.cos(np.radians(speed_phi[j]))
-
-   #9 is total B  F6.1 also fill ist 999.9, in nT
-   btot[j]=line[9]
-   if btot[j] == 999.9: btot[j]=np.NaN
-
-   #GSE components from 13 to 15, so 12 to 14 index, in nT
-   bx[j]=line[12]
-   if bx[j] == 999.9: bx[j]=np.NaN
-   by[j]=line[13]
-   if by[j] == 999.9: by[j]=np.NaN
-   bz[j]=line[14]
-   if bz[j] == 999.9: bz[j]=np.NaN
- 
-   #GSM
-   bygsm[j]=line[15]
-   if bygsm[j] == 999.9: bygsm[j]=np.NaN
- 
-   bzgsm[j]=line[16]
-   if bzgsm[j] == 999.9: bzgsm[j]=np.NaN 	
- 
-   #24 in file, index 23 proton density /ccm
-   den[j]=line[23]
-   if den[j] == 999.9: den[j]=np.NaN
- 
-   #29 in file, index 28 Pdyn, F6.2, fill values sind 99.99, in nPa
-   pdyn[j]=line[28]
-   if pdyn[j] == 99.99: pdyn[j]=np.NaN 		
- 
-   year[j]=line[0]
-   day[j]=line[1]
-   hour[j]=line[2]
-   j=j+1     
-
-
- print('done reading variables from file')
- print(j, ' datapoints')   #for reading data from OMNI file
- 
- 
- 
-############################################################# 
-def converttime(): #to matplotlib format
-
- #http://docs.sunpy.org/en/latest/guide/time.html
- #http://matplotlib.org/examples/pylab_examples/date_demo2.html
-
- print('convert time start')
- for index in range(0,dataset):
-      #first to datetimeobject 
-      timedum=datetime.datetime(int(year[index]), 1, 1) + datetime.timedelta(day[index] - 1) +datetime.timedelta(hours=hour[index])
-      #then to matlibplot dateformat:
-      times1[index] = matplotlib.dates.date2num(timedum)
-      #print time
-      #print year[index], day[index], hour[index]
- print('convert time done')   #for time conversion
-
-
+#from predstorm_module import convert_GSE_to_GSM
 
 
 ############################################################
@@ -276,303 +163,38 @@ def plotwind(start, end, tickdays):
 
 
 
- 
-######################################################################################## 
-###  THIS IS THE MAIN FUNCTION FOR SOLAR WIND TO DST CONVERSION  
-########################################################################################
-def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in):
+################################### main program ########################################
 
- #this makes from synthetic or observed solar wind the Dst index	
- #all nans in the input data must be removed prior to function call
- #3 models are calculated: Burton et al., OBrien/McPherron, and Temerin/Li
+#closes all plots
+plt.close('all')
 
- #btot_in IMF total field, in nT, GSE or GSM (they are the same)
- #bx_in - the IMF Bx field in nT, GSE or GSM (they are the same)
- #by_in - the IMF By field in nT, GSM
- #bz_in - the IMF Bz field in nT, GSM
- #v_in - the speed in km/s
- #vx_in - the solar wind speed x component (GSE is similar to GSM) in km/s
- #time_in - the time in matplotlib date format
-
- #define variables
- Ey=np.zeros(len(bz_in))
- #dynamic pressure
- pdyn1=np.zeros(len(bz_in))
- protonmass=1.6726219*1e-27  #kg
- #assume pdyn is only due to protons
- pdyn1=density_in*1e6*protonmass*(v_in*1e3)**2*1e9  #in nanoPascal
- dststar1=np.zeros(len(bz_in))
- dstcalc1=np.zeros(len(bz_in))
- dststar2=np.zeros(len(bz_in))
- dstcalc2=np.zeros(len(bz_in))
- 
- #array with all Bz fields > 0 to 0 
- bz_in_negind=np.where(bz_in > 0)  
-  #important: make a deepcopy because you manipulate the input variable
- bzneg=copy.deepcopy(bz_in)
- bzneg[bz_in_negind]=0
-
- #define interplanetary electric field 
- Ey=v_in*abs(bzneg)*1e-3; #now Ey is in mV/m
- 
- ######################## model 1: Burton et al. 1975 
- Ec=0.5  
- a=3.6*1e-5
- b=0.2*100 #*100 wegen anderer dynamic pressure einheit in Burton
- c=20  
- d=-1.5/1000 
- for i in range(len(bz_in)-1):
-  if Ey[i] > Ec:
-   F=d*(Ey[i]-Ec) 
-  else: F=0
-  #Burton 1975 seite 4208: Dst=Dst0+bP^1/2-c   / und b und c positiv  
-  #this is the ring current Dst
-  deltat_sec=(time_in[i+1]-time_in[i])*86400 #timesyn is in days - convert to seconds
-  dststar1[i+1]=(F-a*dststar1[i])*deltat_sec+dststar1[i];  #deltat must be in seconds
-  #this is the Dst of ring current and magnetopause currents 
-  dstcalc1[i+1]=dststar1[i+1]+b*np.sqrt(pdyn1[i+1])-c; 
-
- ###################### model 2: OBrien and McPherron 2000 
- #constants
- Ec=0.49
- b=7.26  
- c=11  #nT
- for i in range(len(bz_in)-1):
-  if Ey[i] > Ec:            #Ey in mV m
-   Q=-4.4*(Ey[i]-Ec) 
-  else: Q=0
-  tau=2.4*np.exp(9.74/(4.69+Ey[i])) #tau in hours
-  #this is the ring current Dst
-  deltat_hours=(time_in[i+1]-time_in[i])*24 #time_in is in days - convert to hours
-  dststar2[i+1]=((Q-dststar2[i]/tau))*deltat_hours+dststar2[i] #t is pro stunde, time intervall ist auch 1h
-  #this is the Dst of ring current and magnetopause currents 
-  dstcalc2[i+1]=dststar2[i+1]+b*np.sqrt(pdyn1[i+1])-c; 
-  
- 
- 
- ######## model 3: Xinlin Li LASP Colorado and Mike Temerin
- 
-  
- #2002 version 
- 
- #define all terms
- dst1=np.zeros(len(bz_in))
- dst2=np.zeros(len(bz_in))
- dst3=np.zeros(len(bz_in))
- pressureterm=np.zeros(len(bz_in))
- directterm=np.zeros(len(bz_in))
- offset=np.zeros(len(bz_in))
- dst_temerin_li_out=np.zeros(len(bz_in))
- bp=np.zeros(len(bz_in))
- bt=np.zeros(len(bz_in))
- 
- 
- #define inital values (needed for convergence, see Temerin and Li 2002 note)
- dst1[0:10]=-15
- dst2[0:10]=-13
- dst3[0:10]=-2
- 
- 
-
- #define all constants
- p1=0.9
- p2=2.18e-4
- p3=14.7
- 
- # these need to be found with a fit for 1-2 years before calculation
- # taken from the TL code:    offset_term_s1 = 6.70       ;formerly named dsto
- #   offset_term_s2 = 0.158       ;formerly hard-coded     2.27 for 1995-1999
- #   offset_term_s3 = -0.94       ;formerly named phasea  -1.11 for 1995-1999
- #   offset_term_s4 = -0.00954    ;formerly hard-coded
- #   offset_term_s5 = 8.159e-6    ;formerly hard-coded
- 
- 
- #s1=6.7
- #s2=0.158
- #s3=-0.94
- #set by myself as a constant in the offset term
- #s4=-3
- 
- 
- #s1=-2.788
- #s2=1.44
- #s3=-0.92
- #set by myself as a constant in the offset term
- #s4=-3
- #s4 and s5 as in the TL 2002 paper are not used due to problems with the time
- #s4=-1.054*1e-2
- #s5=8.6e-6
-
-
- #found by own offset optimization for 2015
- s1=4.29
- s2=5.94
- s3=-3.97
- 
- a1=6.51e-2
- a2=1.37
- a3=8.4e-3  
- a4=6.053e-3
- a5=1.12e-3
- a6=1.55e-3
- 
- tau1=0.14 #days
- tau2=0.18 #days
- tau3=9e-2 #days
- 
- b1=0.792
- b2=1.326
- b3=1.29e-2
- 
- c1=-24.3
- c2=5.2e-2
-
- #Note: vx has to be used with a positive sign throughout the calculation
- 
- 
- 
- #----------------------------------------- loop over each timestep
- for i in np.arange(1,len(bz_in)-1):
-
-      
-  #t time in days since beginning of 1995   #1 Jan 1995 in Julian days
-#  t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('1995-1-1 00:00')
-  t1=sunpy.time.julian_day(mdates.num2date(time_in[i]))-sunpy.time.julian_day('2015-1-1 00:00')
-  
- 
-  yearli=365.24 
-  tt=2*np.pi*t1/yearli
-  ttt=2*np.pi*t1
-  alpha=0.078
-  beta=1.22
-  cosphi=np.sin(tt+alpha)*np.sin(ttt-tt-beta)*(9.58589*1e-2)+np.cos(tt+alpha)*(0.39+0.104528*np.cos(ttt-tt-beta))
- 
-  #equation 1 use phi from equation 2
-  sinphi=(1-cosphi**2)**0.5
-  
-  pressureterm[i]=(p1*(btot_in[i]**2)+density_in[i]*((p2*((v_in[i])**2)/(sinphi**2.52))+p3))**0.5
-  
-  #2 directbzterm 
-  directterm[i]=0.478*bz_in[i]*(sinphi**11.0)
-
-  #3 offset term - the last two terms were cut because don't make sense as t1 rises extremely for later years
-  offset[i]=s1+s2*np.sin(2*np.pi*t1/yearli+s3)
-  #or just set it constant
-  #offset[i]=-5
-  bt[i]=(by_in[i]**2+bz_in[i]**2)**0.5  
-  #mistake in 2002 paper - bt is similarly defined as bp (with by bz); but in Temerin and Li's code (dst.pro) bp depends on by and bx
-  bp[i]=(by_in[i]**2+bx_in[i]**2)**0.5  
-  #contains t1, but in cos and sin 
-  dh=bp[i]*np.cos(np.arctan2(bx_in[i],by_in[i])+6.10) * ((3.59e-2)*np.cos(2*np.pi*t1/yearli+0.04)-2.18e-2*np.sin(2*np.pi*t1-1.60))
-  theta_li=-(np.arccos(-bz_in[i]/bt[i])-np.pi)/2
-  exx=1e-3*abs(vx_in[i])*bt[i]*np.sin(theta_li)**6.1
-  #t1 and dt are in days
-  dttl=sunpy.time.julian_day(mdates.num2date(time_in[i+1]))-sunpy.time.julian_day(mdates.num2date(time_in[i]))
-
- 
-  #4 dst1 
-  #find value of dst1(t-tau1) 
-  #time_in is in matplotlib format in days: 
-  #im time_in den index suchen wo time_in-tau1 am nächsten ist
-  #und dann bei dst1 den wert mit dem index nehmen der am nächsten ist, das ist dann dst(t-tau1)
-  #wenn index nicht existiert (am anfang) einfach index 0 nehmen
-  #check for index where timesi is greater than t minus tau
-  
-  indtau1=np.where(time_in > (time_in[i]-tau1))
-  dst1tau1=dst1[indtau1[0][0]]
-  #similar search for others  
-  dst2tau1=dst2[indtau1[0][0]]
-  th1=0.725*(sinphi**-1.46)
-  th2=1.83*(sinphi**-1.46)
-  fe1=(-4.96e-3)*  (1+0.28*dh)*  (2*exx+abs(exx-th1)+abs(exx-th2)-th1-th2)*  (abs(vx_in[i])**1.11)*((density_in[i])**0.49)*(sinphi**6.0)
-  dst1[i+1]=dst1[i]+  (a1*(-dst1[i])**a2   +fe1*   (1+(a3*dst1tau1+a4*dst2tau1)/(1-a5*dst1tau1-a6*dst2tau1)))  *dttl
-  
-  #5 dst2    
-  indtau2=np.where(time_in > (time_in[i]-tau2))
-  dst1tau2=dst1[indtau2[0][0]]
-  df2=(-3.85e-8)*(abs(vx_in[i])**1.97)*(btot_in[i]**1.16)*(np.sin(theta_li)**5.7)*((density_in[i])**0.41)*(1+dh)
-  fe2=(2.02*1e3)*(sinphi**3.13)*df2/(1-df2)
-  dst2[i+1]=dst2[i]+(b1*(-dst2[i])**b2+fe2*(1+(b3*dst1tau2)/(1-b3*dst1tau2)))*dttl
-  
-  #6 dst3  
-  indtau3=np.where(time_in > (time_in[i]-tau3))
-  dst3tau3=dst3[indtau3[0][0]]
-  df3=-4.75e-6*(abs(vx_in[i])**1.22)*(bt[i]**1.11)*np.sin(theta_li)**5.5*((density_in[i])**0.24)*(1+dh)
-  fe3=3.45e3*(sinphi**0.9)*df3/(1-df3)
-  dst3[i+1]=dst3[i]+  (c1*dst3[i]   + fe3*(1+(c2*dst3tau3)/(1-c2*dst3tau3)))*dttl
-  
-   
-  #print(dst1[i], dst2[i], dst3[i], pressureterm[i], directterm[i], offset[i])
-  #debugging
-  #if i == 30: pdb.set_trace()
-  #for debugging
-  #print()
-  #print(dst1[i])
-  #print(dst2[i])
-  #print(dst3[i])
-  #print(pressureterm[i])
-  #print(directterm[i])
-
-
-  #add time delays: ** to do
-  
-  #The dst1, dst2, dst3, (pressure term), (direct IMF bz term), and (offset terms) are added (after interpolations) with time delays of 7.1, 21.0, 43.4, 2.0, 23.1 and 7.1 min, respectively, for comparison with the ‘‘Kyoto Dst.’’ 
-
-  #dst1
-  
-  dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]+offset[i]
-  
-  
-
-  
-
-
-  #print(dst_temerin_li_out[i])
- 
-  #---------------- loop over
- plt.plot(dst1)
- plt.plot(dst2)
- plt.plot(dst3)
- plt.plot(pressureterm)
- plt.plot(directterm)
- plt.plot(offset) 
-  
-
- return (dstcalc1,dstcalc2, dst_temerin_li_out)
-   
-   
+#if omni2 hourly data is not here, download:
+if not os.path.exists('omni2_all_years.dat'):
+  #see http://omniweb.gsfc.nasa.gov/html/ow_data.html
+  omni2_url='ftp://nssdcftp.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
+  try: urllib.request.urlretrieve(omni2_url, 'omni2_all_years.dat')
+  except urllib.error.URLError as e:
+      print(' ', http_sta_pla_file_str[p],' ',e.reason)
 
 
 
+#load OMNI2 dataset from .dat file
+[year,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp]=get_omni_data()
+#convert year, day, hour to matplotlib format
+otime=convert_omni_time(year,day,hour)
+
+#plot example:
+plt.plot_date(otime,btot,'-')
+#for manipulating plot
+#plt.show(block='true')
 
 
 
-
-
-
-
-
-
-####################################################### MAIN PROGRAM
-
-
-########################################## get data
-#read in data from omni file -> 1 , from save_file -> 0
-data_from_omni_file = 0 #
-
-if data_from_omni_file == 1:
- getdata()
- converttime()
- pickle.dump([spot,btot,bx,by,bz,bygsm,bzgsm,speed,speedx, dst,kp, den,pdyn,year,day,hour,times1], open( "omni2save.p", "wb" ) ) 
-else: [spot,btot,bx,by,bz,bygsm, bzgsm,speed,speedx, dst,kp,den,pdyn,year,day,hour,times1]= pickle.load( open( "omni2save.p", "rb" ) )
-
-
-###################################### for plotting a specific interval of the data in an extra plot
 
 #plotwind('1995-Jan-1','2016-Jul-10',365)
 
 
-################################## slice data for comparison of solar wind to Dst conversion
+########## slice data for comparison of solar wind to Dst conversion
 
 #test time range
 start='2015-Jan-20'
@@ -595,7 +217,7 @@ pdyni=np.zeros(24*ndays)
 
 s=mdates.date2num(sunpy.time.parse_time(start))
 #"i" stands for interval
-ind=np.where(s==times1)[0][0]
+ind=np.where(s==otime)[0][0]
 btoti=btot[ind:ind+24*ndays]
 bxi=bx[ind:ind+24*ndays]
 bygsei=by[ind:ind+24*ndays]
@@ -606,7 +228,7 @@ bzgsmi=bzgsm[ind:ind+24*ndays]
 speedi=speed[ind:ind+24*ndays]
 speedix=speedx[ind:ind+24*ndays]
 deni=den[ind:ind+24*ndays]
-timesi=times1[ind:ind+24*ndays]
+timesi=otime[ind:ind+24*ndays]
 dsti=dst[ind:ind+24*ndays]
 kpi=kp[ind:ind+24*ndays]
 
