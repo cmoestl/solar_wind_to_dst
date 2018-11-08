@@ -1,16 +1,36 @@
-## solar_wind_to_dst.py
-
-## available methods: Burton et al. 1975, OBrien & McPherron 2000, and Temerin and Li 2002 
+## solar_wind_to_dst_example.py
+##
+##
+## This is a code for showing an example how to convert
+## solar wind observations (here OMNI2 data) to the geomagnetic Dst index
 ## Author: C. Moestl, IWF Graz, Austria
 ##
-## latest update: July 10 2018
+## latest update: November 2018
 ## tested in ipython 3.5 with sunpy and seaborn installed
-
-## Copyright <2018> <Christian Moestl> MIT LICENSE
-## Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-## The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-## THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+##
+## available methods: 
+## Burton et al. 1975
+## OBrien & McPherron 2000
+## Temerin and Li 2002 
+## (note that Temerin and Li 2006 is not implemented here)
+##
+## MIT LICENSE
+## Copyright 2018, Christian Moestl 
+## Permission is hereby granted, free of charge, to any person obtaining a copy of this 
+## software and associated documentation files (the "Software"), to deal in the Software
+## without restriction, including without limitation the rights to use, copy, modify, 
+## merge, publish, distribute, sublicense, and/or sell copies of the Software, and to 
+## permit persons to whom the Software is furnished to do so, subject to the following 
+## conditions:
+## The above copyright notice and this permission notice shall be included in all copies 
+## or substantial portions of the Software.
+## THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+## INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+## PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT 
+## HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
+## CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE 
+## OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+##
 ## If results made with this code are used for scientific publications, 
 ## please contact me before submission: christian.moestl@oeaw.ac.at or twitter @chrisoutofspace
 
@@ -29,10 +49,8 @@ import os
 import copy
 import pdb
 
-########################## initialize
+################################### main program ########################################
 
-#get current directory
-os.system('pwd')
 #closes all plots
 plt.close('all')
 
