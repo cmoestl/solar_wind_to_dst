@@ -1,17 +1,21 @@
-#This is the module for the predstorm package containing functions and procedures
+#This is the module for the solar_wind_to_dst package containing functions and procedures
 
 import numpy as np
 import scipy
 import copy
 import sunpy
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import ephem
 import datetime
+import pdb
+import seaborn as sns
+
 
 # use
 # import importlib
-# import predstorm_module
-# importlib.reload(predstorm_module)
+# import dst_module
+# importlib.reload(dst_module)
 # to update module while working in command line 
 
 
@@ -77,23 +81,6 @@ def converttime():
  print('convert time done')   #for time conversion
 
 
-def convert_omni_time(year,day,hour):
-
- #http://docs.sunpy.org/en/latest/guide/time.html
- #http://matplotlib.org/examples/pylab_examples/date_demo2.html
-
- times1=np.zeros(len(year)) #datetime time
- print('convert time start')
- for index in range(0,len(year)):
-      #first to datetimeobject 
-      timedum=datetime.datetime(int(year[index]), 1, 1) + datetime.timedelta(day[index] - 1) +datetime.timedelta(hours=hour[index])
-      #then to matlibplot dateformat:
-      times1[index] = mdates.date2num(timedum)
-      
-      #print time
-      #print year[index], day[index], hour[index]
- print('convert time done')   #for time conversion
- return times1
 
 
 def sunriseset(location_name):
@@ -128,14 +115,13 @@ def sunriseset(location_name):
 
 
 
+
 def get_omni_data():
 
- 
- #FORMAT(2I4,I3,I5,2I3,2I4,14F6.1,F9.0,F6.1,F6.0,2F6.1,F6.3,F6.2, F9.0,F6.1,F6.0,2F6.1,F6.3,2F7.2,F6.1,I3,I4,I6,I5,F10.2,5F9.2,I3,I4,2F6.1,2I6,F5.1)
+  #FORMAT(2I4,I3,I5,2I3,2I4,14F6.1,F9.0,F6.1,F6.0,2F6.1,F6.3,F6.2, F9.0,F6.1,F6.0,2F6.1,F6.3,2F7.2,F6.1,I3,I4,I6,I5,F10.2,5F9.2,I3,I4,2F6.1,2I6,F5.1)
  #1963   1  0 1771 99 99 999 999 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 999.9 9999999. 999.9 9999. 999.9 999.9 9.999 99.99 9999999. 999.9 9999. 999.9 999.9 9.999 999.99 999.99 999.9  7  23    -6  119 999999.99 99999.99 99999.99 99999.99 99999.99 99999.99  0   3 999.9 999.9 99999 99999 99.9
 
-
- #define variables from OMNI2 dataset
+#define variables from OMNI2 dataset
  #see http://omniweb.gsfc.nasa.gov/html/ow_data.html
 
  #omni2_url='ftp://nssdcftp.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
@@ -143,7 +129,7 @@ def get_omni_data():
  #check how many rows exist in this file
  f=open('omni2_all_years.dat')
  dataset= len(f.readlines())
- print(dataset)
+ #print(dataset)
  #global Variables
  spot=np.zeros(dataset) 
  btot=np.zeros(dataset) #floating points
@@ -230,12 +216,237 @@ def get_omni_data():
    day[j]=line[1]
    hour[j]=line[2]
    j=j+1     
+   
 
- print('done.')
+ #convert time to matplotlib format
+ #http://docs.sunpy.org/en/latest/guide/time.html
+ #http://matplotlib.org/examples/pylab_examples/date_demo2.html
+
+ times1=np.zeros(len(year)) #datetime time
+ print('convert time start')
+ for index in range(0,len(year)):
+      #first to datetimeobject 
+      timedum=datetime.datetime(int(year[index]), 1, 1) + datetime.timedelta(day[index] - 1) +datetime.timedelta(hours=hour[index])
+      #then to matlibplot dateformat:
+      times1[index] = mdates.date2num(timedum)
+ print('convert time done')   #for time conversion
+
+ print('all done.')
  print(j, ' datapoints')   #for reading data from OMNI file
- return (year,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp)
+ 
+ #make structured array of data
+ omni_data=np.rec.array([times1,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp], \
+ dtype=[('time','f8'),('btot','f8'),('bx','f8'),('by','f8'),('bz','f8'),\
+ ('bygsm','f8'),('bzgsm','f8'),('speed','f8'),('speedx','f8'),('den','f8'),('pdyn','f8'),('dst','f8'),('kp','f8')])
+ 
+ return omni_data
  
 ############################################################# 
+
+
+
+########## slice data for comparison of solar wind to Dst conversion
+
+def interslice_omni(od,start, end):
+
+ plotstartdate=mdates.date2num(sunpy.time.parse_time(start))
+ plotenddate=mdates.date2num(sunpy.time.parse_time(end))
+ ndays=round(plotenddate-plotstartdate)
+ 
+#smaller ndays array with hourly values
+ 
+	#"i" stands for interval
+ ind=np.where(plotstartdate==od.time)[0][0]
+ btoti=od.btot[ind:ind+24*ndays]
+ bxi=od.bx[ind:ind+24*ndays]
+ byi=od.by[ind:ind+24*ndays]
+ bzi=od.bz[ind:ind+24*ndays]
+ bygsmi=od.bygsm[ind:ind+24*ndays]
+ bzgsmi=od.bzgsm[ind:ind+24*ndays]
+ speedi=od.speed[ind:ind+24*ndays]
+ speedxi=od.speedx[ind:ind+24*ndays]
+ deni=od.den[ind:ind+24*ndays]
+ pdyni=od.pdyn[ind:ind+24*ndays]
+
+ #these are only sliced and not interpolated
+ dsti=od.dst[ind:ind+24*ndays]
+ kpi=od.kp[ind:ind+24*ndays]
+ timesi=od.time[ind:ind+24*ndays]
+
+ 
+	#IMF clock angle
+ #thetai=np.arctan2(bygsmi,bzgsmi)
+ #thetai_deg=thetai*180/np.pi
+
+ ################  linearly interpolate over nan
+
+ time_new=np.arange(timesi[0],timesi[-1]+1.0/24,1.0/24)
+ good = np.where(np.isfinite(btoti))
+ btoti=np.interp(time_new,timesi[good],btoti[good])
+ good = np.where(np.isfinite(bxi))
+ bxi=np.interp(time_new,timesi[good],bxi[good])
+ good = np.where(np.isfinite(byi))
+ byi=np.interp(time_new,timesi[good],byi[good])
+ good = np.where(np.isfinite(bzi))
+ bzi=np.interp(time_new,timesi[good],bzi[good])
+ good = np.where(np.isfinite(bygsmi))
+ bygsmi=np.interp(time_new,timesi[good],bygsmi[good])
+ good = np.where(np.isfinite(bzgsmi))
+ bzgsmi=np.interp(time_new,timesi[good],bzgsmi[good])
+ good = np.where(np.isfinite(speedi))
+ speedi=np.interp(time_new,timesi[good],speedi[good])
+ good = np.where(np.isfinite(speedxi))
+ speedxi=np.interp(time_new,timesi[good],speedxi[good])
+ good = np.where(np.isfinite(deni))
+ deni=np.interp(time_new,timesi[good],deni[good])
+ good = np.where(np.isfinite(pdyni))
+ pdyni=np.interp(time_new,timesi[good],pdyni[good])
+
+
+ #make structured array of data
+ sliced_interp_omni_data=np.rec.array([time_new,btoti,bxi,byi,bzi,bygsmi,bzgsmi,speedi,speedxi,deni,pdyni,dsti,kpi], \
+ dtype=[('time','f8'),('btot','f8'),('bx','f8'),('by','f8'),('bz','f8'),\
+ ('bygsm','f8'),('bzgsm','f8'),('speed','f8'),('speedx','f8'),('den','f8'),('pdyn','f8'),('dst','f8'),('kp','f8')])
+ 
+ return sliced_interp_omni_data
+
+
+
+
+
+
+############################################################
+def plot_omni(od,start, end, tickdays):
+ 
+ plotstartdate=mdates.date2num(sunpy.time.parse_time(start))
+ plotenddate=mdates.date2num(sunpy.time.parse_time(end))
+  
+     
+ #eigenes tick spacing for major ticks
+ #jeder 5. Tag 1 tick
+ #meinex_majorticks=np.arange(plotstartdate,plotenddate,366) 
+ meinex_majorticks=np.arange(plotstartdate,plotenddate,tickdays) 
+
+ fig=plt.figure(1, figsize=(18,10), dpi=100, facecolor='w', edgecolor='w')
+
+
+ sns.set_context("talk")     
+ sns.set_style("darkgrid")  
+ 
+ wide=1.1
+
+ #############
+ ax1 = fig.add_subplot(511)
+ 
+ plt.title('Near Earth solar wind and Dst (OMNI2) at 1 hour resolution')
+ 
+ plt.plot_date(od.time,np.zeros(len(od.time)),'k--',linewidth=wide)
+ plt.plot_date(od.time,od.btot,'k',linewidth=wide, label='B total')
+ #plt.plot_date(otim1,bx,'r',linewidth=wide,label='Bx')
+ #plt.plot_date(otim1,by,'g',linewidth=wide, label='By')
+ 
+ plt.yticks(fontsize=10) 
+ plt.ylabel('B [nT]')
+ plt.ylim((0,np.nanmax(od.btot)+10)) 
+ plt.xlim((plotstartdate, plotenddate))
+ plt.legend(loc=1,fontsize=6)
+ plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
+ plt.tick_params(labelbottom=False)
+ 
+ #################
+ ax2 = fig.add_subplot(512)
+ plt.plot_date(od.time,np.zeros(len(od.time)),'k--',linewidth=wide)
+ plt.plot_date(od.time,od.bzgsm,'b',linewidth=wide)
+ plt.plot_date(od.time,od.bx,'r',linewidth=wide)
+ plt.plot_date(od.time,od.bygsm,'g',linewidth=wide)
+
+ plt.ylabel('Bx, By, Bz GSM[nT]')
+ plt.ylim((np.nanmin(od.bz)-10,np.nanmax(od.bz)+10))
+ plt.xlim((plotstartdate, plotenddate))
+ plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
+ plt.tick_params(labelbottom=False)
+ plt.yticks(fontsize=10) 
+
+ 
+ #################
+ ax3 = fig.add_subplot(513)
+ plt.plot_date(od.time,np.zeros(len(od.time)),'k--',linewidth=wide)
+ plt.plot_date(od.time,od.speed,'b',linewidth=wide)
+ plt.plot_date(od.time,-od.speedx,'k',linewidth=wide)
+ plt.ylabel('V [$\mathrm{km} \mathrm{\; s^{-1}}}$]')
+ plt.ylim((np.nanmin(od.speed)-20,np.nanmax(od.speed)+100))
+ plt.xlim((plotstartdate, plotenddate))
+ plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
+ plt.tick_params(labelbottom=False)
+ plt.yticks(fontsize=10) 
+
+
+ #################
+ ax4 = fig.add_subplot(514)
+ plt.plot_date(od.time,np.zeros(len(od.time)),'k--',linewidth=wide)
+ plt.plot_date(od.time,od.den,'k',linewidth=wide)
+ plt.ylabel('N [$\mathrm{cm^-3}$]')
+ plt.ylim((0,np.nanmax(od.den)+30))
+ plt.xlim((plotstartdate, plotenddate))
+ plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
+ plt.tick_params(labelbottom=False)
+ plt.yticks(fontsize=10) 
+
+   
+ ################## 
+ ax4 = fig.add_subplot(515)
+ plt.plot_date(od.time,np.zeros(len(od.time)),'k--',linewidth=wide)
+ plt.plot_date(od.time,od.dst,'k',linewidth=wide,label='Dst')
+ 
+ #set major ticks from own array
+ plt.xticks(meinex_majorticks,fontsize=10,rotation=17) 
+  
+ #dateformat
+ #myformat = mdates.DateFormatter('%Y %m %d %H:%M')
+ myformat = mdates.DateFormatter('%Y %m %d')
+ ax4.xaxis.set_major_formatter(myformat)
+ 
+   
+ plt.ylabel('Dst [nT]')
+ plt.ylim((np.nanmin(od.dst)-50,np.nanmax(od.dst)+20))
+ plt.xlim((plotstartdate, plotenddate))
+ plt.yticks(fontsize=10) 
+
+ 
+ ####################################################
+ 
+ #print('Bmax for selected interval', start, ' to ', end)
+ #get total Bmax for selected interval
+ 
+ #start_ind=np.where(plotstartdate==otim1)[0][0]
+ #end_ind=np.where(plotenddate==otim1)[0][0]
+ #time_interval=otim1[start_ind:end_ind]
+ #btot_interval=btot[start_ind:end_ind]
+ #print('Maximum total B',np.nanmax(btot_interval), 'nT')
+ #bmax_ind=np.nanargmax(btot_interval) #index of max
+ #timebtotmax=matplotlib.dates.num2date(time_interval[bmax_ind]) #time of minimum
+ #print('happened on', sunpy.time.break_time(timebtotmax))
+ #print(' ')
+
+
+
+############################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -402,7 +613,6 @@ def convert_RTN_to_GSE_sta_l1(cbr,cbt,cbn,ctime,pos_stereo_heeq,pos_time_num):
 
 
  return (bxgse,bygse,bzgse)
- 
  
  
  
@@ -651,4 +861,4 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
   
   dst_temerin_li_out[i]=dst1[i]+dst2[i]+dst3[i]+pressureterm[i]+directterm[i]+offset[i]
   
- return (dstcalc1,dstcalc2, dst_temerin_li_out)     
+ return (dstcalc1,dstcalc2, dst_temerin_li_out)  
