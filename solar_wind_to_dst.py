@@ -55,7 +55,6 @@ import urllib
 import dst_module
 from dst_module import get_omni_data
 from dst_module import plot_omni
-from dst_module import convert_omni_time
 from dst_module import make_dst_from_wind
 from dst_module import interslice_omni
 
@@ -66,25 +65,26 @@ from dst_module import interslice_omni
 #closes all plots
 plt.close('all')
 
-########### load data (only needed 1 time)
-#if omni2 hourly data is not here, download:
+
+################################## (1) LOAD OMNI2 DATA
+
+# if not here download OMNI2 data (only needed first time running the program, currently 155 MB)
 if not os.path.exists('omni2_all_years.dat'):
+
   #see http://omniweb.gsfc.nasa.gov/html/ow_data.html
   print('download OMNI2 data from')
   omni2_url='ftp://nssdcftp.gsfc.nasa.gov/pub/data/omni/low_res_omni/omni2_all_years.dat'
   print(omni2_url)
   try: urllib.request.urlretrieve(omni2_url, 'omni2_all_years.dat')
   except urllib.error.URLError as e:
-      print(' ', http_sta_pla_file_str[p],' ',e.reason)
+      print(' ', omni2_url,' ',e.reason)
 
-#if omni2 hourly data is not yet converted and saved as pickle
+#if omni2 hourly data is not yet converted and saved as pickle, do it:
 if not os.path.exists('omni2_all_years_pickle.p'):
- #load OMNI2 dataset from .dat file
+ #load OMNI2 dataset from .dat file with a function from dst_module.py
  o=get_omni_data()
- #o.time,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp
- 
- 
- #save for faster loading:
+ #contains: o. time,day,hour,btot,bx,by,bz,bygsm,bzgsm,speed,speedx,den,pdyn,dst,kp
+ #save for faster loading later
  pickle.dump(o, open('omni2_all_years_pickle.p', 'wb') )
 
 else:  o=pickle.load(open('omni2_all_years_pickle.p', 'rb') )
@@ -100,29 +100,32 @@ print('loaded OMNI2 data')
 #plt.show(block='true')
 
 
-slice_start='2017-Jan-1'
-slice_end='2017-Dec-31'
+################################# (2) Make Dst from solar wind
+
+#test different intervals
+
+#slice_start='2017-Jan-1'
+#slice_end='2017-Jan-31'
+
+#slice_start='2017-Jan-1'
+#slice_end='2017-Dec-31'
+
+slice_start='2017-Jul-1' 
+slice_end='2017-Jul-31'
+
+#slice_start='2017-Dec-1' 
+#slice_end='2017-Dec-31'
 
 
-
-#slice the data including linear interpolation over NaNs 
-#(this is needed for make_dst_from_wind
+#slice the data, and linear interpolate over NaNs (this is needed for the function make_dst_from_wind later)
 so=interslice_omni(o,slice_start,slice_end)
-
 
 plot_omni(so,slice_start,slice_end,20)
 
-
-print('Calculate Dst')
-
-
-
+print('Calculating Dst')
 # Use the function make_dst_from_wind, defined in dst_module.py, to
 # calculate Dst with 3 methods
-[dst_burton, dst_obrien, dst_temerin_li]=make_dst_from_wind(so.btot,so.bx, \
- so.bygsm, so.bzgsm, so.speed, so.speedx, so.den,so.time)
-
-   
+#function definition   
 #def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in):
  #this makes from synthetic or observed solar wind the Dst index	
  #all nans in the input data must be removed prior to function call
@@ -134,18 +137,23 @@ print('Calculate Dst')
  #v_in - the speed in km/s
  #vx_in - the solar wind speed x component (GSE is similar to GSM) in km/s
  #time_in - the time in matplotlib date format 
- 
- 
- 
-############################# plot solar wind to Dst conversion results
 
+[dst_burton, dst_obrien, dst_temerin_li]=make_dst_from_wind(so.btot,so.bx, \
+ so.bygsm, so.bzgsm, so.speed, so.speedx, so.den,so.time)
+ 
+print('Done.')
+ 
+ 
+ 
+################################## (3) Plot results
+ 
 sns.set_context("talk")     
 sns.set_style("darkgrid")  
 fig=plt.figure(2,figsize=(10,6))
 wide=1
 fsize=10
 
-plt.suptitle('Dst prediction from solar wind speed and magnetic field', fontsize=15)
+plt.suptitle('Dst prediction from solar wind speed, magnetic field and density', fontsize=15)
 
 ax1 = fig.add_subplot(411)
 plt.plot_date(so.time,so.btot, 'k', linewidth=wide, label='B')
@@ -153,13 +161,9 @@ plt.ylabel('B [nT]',fontsize=fsize)
 plt.yticks(fontsize=15) 
 plt.tick_params(labelbottom=False)
 
-#ax1 = fig.add_subplot(412)
-#plt.plot_date(timesi,thetai_deg, 'k', linewidth=wide, label='theta')
-#plt.ylabel('IMF clock angle [deg]')
-
 ax1 = fig.add_subplot(412)
 plt.plot_date(so.time,so.bzgsm, 'b', linewidth=wide, label='Bz GSM')
-plt.ylabel('Bz component [nT]',fontsize=fsize)
+plt.ylabel('Bz GSM [nT]',fontsize=fsize)
 plt.tick_params(labelbottom=False)
 plt.yticks(fontsize=fsize) 
 
@@ -170,12 +174,12 @@ plt.yticks(fontsize=fsize)
 plt.tick_params(labelbottom=False)
 
 ax3 = fig.add_subplot(414)
-plt.plot_date(so.time,so.dst, 'ok', markersize=wide+1,linewidth=1) #, label='Observed hourly Dst')
+plt.plot_date(so.time,so.dst, 'ok', markersize=round(wide+1),linewidth=1) #, label='Observed hourly Dst')
 #plt.plot_date(so.time,dst_burton, 'b-', linewidth=wide, label='Burton et al. 1975')
 #plt.plot_date(so.time,dst_obrien, 'r-', linewidth=wide, label='OBrien & McPherron 2000')
-plt.plot_date(so.time,dst_temerin_li, 'g-', linewidth=1, label='Temerin & Li 2002')
+plt.plot_date(so.time,dst_temerin_li, 'g-', linewidth=wide, label='Temerin & Li 2002')
 plt.legend(loc=3,fontsize=fsize-2)
-#ax3.set_ylim([-130,40])
+ax3.set_ylim([min(so.dst)-30,max(so.dst)+20])
 plt.ylabel('Dst index [nT]',fontsize=fsize)
 plt.yticks(fontsize=fsize) 
 plt.xticks(fontsize=fsize) 
@@ -183,14 +187,14 @@ plt.xticks(fontsize=fsize)
 plt.tight_layout()
 
 #save plot
-filename='test_coupling.eps'
+filename='wind_to_dst_coupling_'+slice_start+'_to_'+slice_end+'.eps'
 plt.savefig(filename, dpi=300)
-filename='wind_to_dst_coupling_test.png'
+filename='wind_to_dst_coupling_'+slice_start+'_to_'+slice_end+'.png'
 plt.savefig(filename)
 
 
 
-#################################### Metrics:
+################################## (4) Calculate Metrics:
 
 print('Metrics for interval ', slice_start,'  to ',slice_end)
 print()
@@ -211,15 +215,9 @@ print('OBrien:', round(rms,1), ' nT')
 rms=(sum((so.dst-dst_temerin_li)**2)/len(so.dst))**0.5
 print('TemerinLi:', round(rms,1), ' nT')
 
-print()
-print('prediction efficiency:')
-residual=so.dst-dst_burton
-effic=(1-np.std(residual)**2/np.std(so.dst)**2)*100
-print('Burton: ', int(effic), ' %')
-residual=so.dst-dst_obrien
-effic=(1-np.std(residual)**2/np.std(so.dst)**2)*100
-print('OBrien: ', int(effic), ' %')
-residual=so.dst-dst_temerin_li
-effic=(1-np.std(residual)**2/np.std(so.dst)**2)*100
-print('TemerinLi: ', int(effic), ' %')
+
+
+############################## END OF CODE #############################################
+
+
 
