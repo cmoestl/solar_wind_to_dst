@@ -14,9 +14,17 @@ peer-reviewed scientific publications, please contact me (see bio).
 
 ## Dependencies
 
-
-....
+* python 3 anaconda, sunpy, seaborn
 
 ## Running the code
 
-....
+* After cloning the repository, run on the command line:
+
+ $ python solar_wind_to_dst.py
+ 
+* or in 
+ 
+ $ ipython
+ 
+ $ run solar_wind_to_dst
+
