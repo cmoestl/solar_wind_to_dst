@@ -1,4 +1,8 @@
+#dst_module.py
 #This is the module for the solar_wind_to_dst package containing functions and procedures
+
+## https://github.com/cmoestl/solar_wind_to_dst
+## Author: C. Moestl, IWF Graz, Austria
 
 import numpy as np
 import scipy
@@ -10,7 +14,6 @@ import ephem
 import datetime
 import pdb
 import seaborn as sns
-
 
 # use
 # import importlib
@@ -782,7 +785,8 @@ def make_dst_from_wind(btot_in,bx_in, by_in,bz_in,v_in,vx_in,density_in,time_in)
  c1=-24.3
  c2=5.2e-2
 
- #Note: vx has to be used with a positive sign throughout the calculation
+ # Note: vx has to be used with a positive sign throughout the calculation, so
+ # always absolute values are taken
  
  
  

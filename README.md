@@ -5,7 +5,7 @@ from knowledge of the solar wind at the Sun-Earth L1 point. This package provide
 for achieving this for Dst (Kp will be added in the future).
 
 
-Status: work in progress, November 2018.
+Status: work in progress, November 2018 / issue with offsets needs to be resolved (fit_offset.py)
 
 
 If you plan to use this code for generating results for 
@@ -14,7 +14,8 @@ peer-reviewed scientific publications, please contact me (see bio).
 
 ## Dependencies
 
-* python 3 anaconda, sunpy, seaborn
+* python 3 anaconda, non-standard packages: sunpy, seaborn
+* I use python 3.5.2 / IPython 4.2.0 on MacOSX Mojave 
 
 ## Running the code
 
@@ -22,9 +23,16 @@ peer-reviewed scientific publications, please contact me (see bio).
 
  $ python solar_wind_to_dst.py
  
-* or in 
- 
- $ ipython
+* or in ipython
  
  $ run solar_wind_to_dst
 
+* The code will download OMNI2 hourly data (158 MB currently) into the main folder, 
+convert the time to the matplotlib time format, and save the data as a numpy recarray, 
+so when the structure 'omni' contains the data, the variables can be used as 
+'omni.time','omni.btot', 'omni.speed' etc.
+
+* The main function to convert solar wind to dst is 'make_dst_from_wind' in the dst_module.py file
+
+* The code creates a plot of the solar wind, the observed Dst and a Dst calculated from the solar wind 
+for a time interval selected in the main program solar_wind_to_dst.py

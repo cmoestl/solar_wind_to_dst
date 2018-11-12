@@ -51,6 +51,7 @@ import os
 import copy
 import pdb
 import urllib
+import math
 
 import dst_module
 from dst_module import get_omni_data
@@ -107,11 +108,11 @@ print('loaded OMNI2 data')
 #slice_start='2017-Jan-1'
 #slice_end='2017-Jan-31'
 
-#slice_start='2017-Jan-1'
-#slice_end='2017-Dec-31'
+slice_start='2017-Jan-1'
+slice_end='2017-Dec-31'
 
-slice_start='2017-Jul-1' 
-slice_end='2017-Jul-31'
+#slice_start='2017-Jul-1' 
+#slice_end='2017-Jul-31'
 
 #slice_start='2017-Dec-1' 
 #slice_end='2017-Dec-31'
@@ -150,7 +151,7 @@ print('Done.')
 sns.set_context("talk")     
 sns.set_style("darkgrid")  
 fig=plt.figure(2,figsize=(10,6))
-wide=1
+wide=0.5
 fsize=10
 
 plt.suptitle('Dst prediction from solar wind speed, magnetic field and density', fontsize=15)
@@ -174,7 +175,7 @@ plt.yticks(fontsize=fsize)
 plt.tick_params(labelbottom=False)
 
 ax3 = fig.add_subplot(414)
-plt.plot_date(so.time,so.dst, 'ok', markersize=round(wide+1),linewidth=1) #, label='Observed hourly Dst')
+plt.plot_date(so.time,so.dst, 'ok', markersize=math.ceil(wide),linewidth=1) #, label='Observed hourly Dst')
 #plt.plot_date(so.time,dst_burton, 'b-', linewidth=wide, label='Burton et al. 1975')
 #plt.plot_date(so.time,dst_obrien, 'r-', linewidth=wide, label='OBrien & McPherron 2000')
 plt.plot_date(so.time,dst_temerin_li, 'g-', linewidth=wide, label='Temerin & Li 2002')
