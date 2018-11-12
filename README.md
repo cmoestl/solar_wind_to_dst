@@ -33,7 +33,7 @@ convert the time to the matplotlib time format, and save the data as a numpy rec
 so when the structure 'omni' contains the data, the variables can be used as 
 'omni.time','omni.btot', 'omni.speed' etc.
 
-* The main function to convert solar wind to dst is 'make_dst_from_wind' in the dst_module.py file
+* The main function to convert a given solar wind to dst is 'make_dst_from_wind' in the dst_module.py file
 
 * The main program solar_wind_to_dst.py creates a plot of the solar wind, the observed Dst and a Dst calculated from the solar wind 
 for a time interval selected in solar_wind_to_dst.py
